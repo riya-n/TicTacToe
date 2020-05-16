@@ -5,9 +5,7 @@ import PlaygroundSupport
 import AVFoundation
 
 class MyViewController : UIViewController {
-    
-    // TODO: to change it you could make it a 4x4 grid but still need 3 in a row to win
-    
+
     let hapticEngine = UIImpactFeedbackGenerator()
     var score = UILabel()
     var turn = UILabel()
@@ -36,15 +34,16 @@ class MyViewController : UIViewController {
     
     func didUpdate(state: BlockState, button: UIButton) {
         switch state {
-            case .x: button.setImage(UIImage(named: "mark-x.png")?.withRenderingMode(.alwaysTemplate), for: .normal)
-            case .o: button.setImage(UIImage(named: "mark-o.png")?.withRenderingMode(.alwaysTemplate), for: .normal)
+            case .x: button.setImage(UIImage(named: "mark-x.png")?.withRenderingMode(.alwaysTemplate), for: .normal); self.checkStatus(button)
+            //; self.onComputerTurn()
+            case .o: button.setImage(UIImage(named: "mark-o.png")?.withRenderingMode(.alwaysTemplate), for: .normal); self.checkStatus(button)
             case .blank: button.setImage(UIImage(named: "mark-none.png")?.withRenderingMode(.alwaysTemplate), for: .normal)
         }
     }
 
     func didUpdate(state: GameState, button: UIButton, comb: [UIButton]) {
         switch state {
-        case .playing: turn.text = currPlayer == .x ? "Your Turn" : ""; turn.textColor = .label; currPlayer == .o ? self.onComputerTurn() : nil
+            case .playing: turn.text = currPlayer == .x ? "Your Turn" : ""; turn.textColor = .label; currPlayer == .o ? self.onComputerTurn() : nil
             case .win: turn.text = "You Win!"; turn.textColor = .systemGreen; scoreCount = scoreCount + 1; comb.forEach { block in block.tintColor = .systemGreen}
             case .lose: turn.text = "You lose :("; turn.textColor = .systemRed; comb.forEach { block in block.tintColor = .systemRed}
             case .draw: turn.text = "Draw"; turn.textColor = .systemGray; buttons.forEach { block in block.tintColor = .systemGray}
@@ -137,14 +136,18 @@ class MyViewController : UIViewController {
     
     @objc func onClickButton(sender: UIButton) {
         if (blocks[sender.tag - 1] == .blank && gameState == .playing) {
+//            print(currPlayer)
+//            print(self.currPlayer)
             hapticEngine.impactOccurred()
             blocks[sender.tag - 1] = currPlayer
+//            print(blocks)
 //            var endGame = false
             DispatchQueue.main.async {
+//                print(self.currPlayer)
                 self.didUpdate(state: self.currPlayer, button: sender)
 //                endGame =
             }
-            self.checkStatus(sender)
+//            self.checkStatus(sender)
 
 //            if (!endGame) {
 //                self.onComputerTurn()
@@ -197,57 +200,260 @@ class MyViewController : UIViewController {
         return endGame
     }
     
-    func onComputerTurn() {
-        var score = -Int.max
-        var move = -1
+//    func onComputerTurn() {
+////        var bestScore = Int.min;
+////        var move = -1
+////        for i in 0...8 {
+////            if (blocks[i] == .blank) {
+////                blocks[i] = .o
+////                let score = minimax(blocks, 0, false)
+////                blocks[i] = .blank
+////                if (score > bestScore) {
+////                  bestScore = score;
+////                  move = i;
+////                }
+////            }
+////        }
+//        let move = anotherMinimax(blocks, .o)
+//
+//        blocks[move] = .o;
+//        DispatchQueue.main.async {
+//            print(self.blocks)
+//            self.didUpdate(state: self.currPlayer, button: self.buttons[move])
+//        }
+//    }
+    // This will return the best possible move for the player
+    
+        func winning(_ board: [BlockState], _ player: BlockState) -> Bool {
+         if (
+         (board[0] == player && board[1] == player && board[2] == player) ||
+         (board[3] == player && board[4] == player && board[5] == player) ||
+         (board[6] == player && board[7] == player && board[8] == player) ||
+         (board[0] == player && board[3] == player && board[6] == player) ||
+         (board[1] == player && board[4] == player && board[7] == player) ||
+         (board[2] == player && board[5] == player && board[8] == player) ||
+         (board[0] == player && board[4] == player && board[8] == player) ||
+         (board[2] == player && board[4] == player && board[6] == player)
+         ) {
+         return true;
+         } else {
+         return false;
+         }
+        }
         
-        for (i, block) in blocks.enumerated() {
-            print("i: \(i)")
-            print("block: \(block)")
-            if (block == .blank) {
-                blocks[i] = .o
-                let minimaxScore = minimax(&blocks, 0, .o)
-                print("score: \(score)")
-                blocks[i] = .blank
-                if (minimaxScore > score) {
-                    score = minimaxScore
-                    move = i
+        
+        func onComputerTurn() {
+           // AI to make its turn
+            var bestScore = Int.min;
+                   var move = -1;
+            for i in 0...8 {
+                if (blocks[i] == .blank) {
+                    blocks[i] = .o;
+                  let score = minimax(&blocks, 0, false);
+                    blocks[i] = .blank;
+                  if (score > bestScore) {
+                    bestScore = score;
+                    move = i;
+                  }
                 }
             }
+            
+            print(move)
+            blocks[move] = .o;
+            DispatchQueue.main.async {
+//                            print(self.blocks)
+                            self.didUpdate(state: self.currPlayer, button: self.buttons[move])
+                        }
+//            printBoard(board)
+//            print("your turn")
         }
-        print(move)
-        blocks[move] = currPlayer
-        let seconds = 2.0
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
-            self.didUpdate(state: self.currPlayer, button: self.buttons[move])
-            self.checkStatus(self.buttons[move])
+
+        func minimax(_ board: inout [BlockState], _ depth: Int, _ isMaximizing: Bool) -> Int {
+    //        if let score = checkWin(board) {
+    //            return score
+    //        }
+            if (winning(board, .x)) {
+                return -1
+            } else if (winning(board, .o)) {
+                return 1
+            } else if (!board.contains(.blank)) {
+                return 0
+            }
+            
+            
+//            print("----nonrealupper----")
+//            printBoard(board)
+//            print("----nonreallower----")
+          if (isMaximizing) {
+//            print("max true")
+            var bestScore = Int.min;
+            for i in 0...8 {
+                if (board[i] == .blank) {
+                    board[i] = .o;
+                  let score = minimax(&board, depth + 1, false);
+                    board[i] = .blank;
+//                print("\(i) score \(score)")
+//                print("\(i) bestscore \(bestScore)")
+                  bestScore = max(score, bestScore);
+//                print("\(i) newbestscore \(bestScore)")
+                }
+            }
+            return bestScore;
+          } else {
+//            print("max false")
+            var bestScore = Int.max;
+            for i in 0...8 {
+                if (board[i] == .blank) {
+                    board[i] = .x;
+                  let score = minimax(&board, depth + 1, true);
+                    board[i] = .blank;
+//                print("\(i) score \(score)")
+//                print("\(i) bestscore \(bestScore)")
+                  bestScore = min(score, bestScore);
+//                print("\(i) newbestscore \(bestScore)")
+                }
+            }
+            return bestScore;
+          }
         }
-    }
+
     
-//    func minimax(_ blocks: inout [BlockState], _ depth: Int, _ curr: BlockState) -> Int {
-//        var endGame = false
-//        for comb in winComb {
-//            endGame = (blocks[comb[0]] == blocks[comb[1]] && blocks[comb[0]] == blocks[comb[2]] && blocks[comb[0]] != .blank)
-//        }
+    
+    
+//        func onComputerTurn() {
 //
-//        if (endGame) {
-//            return curr == .o ? 1 : -1
-//        } else if (!blocks.contains(.blank)) {
-//            return 0
-//        }
+//        var bestVal = -1000;
+//        var bestMove = -1;
 //
-//        var bestScore = curr == .o ? -Int.max : Int.max
-//        for (i, block) in blocks.enumerated() {
-//            if (block == .blank) {
-//                blocks[i] = curr
-//                let score = minimax(&blocks, depth + 1, curr == .o ? .o : .x)
-//                blocks[i] = .blank
-//                bestScore = curr == .o ? max(score, bestScore) : min(score, bestScore)
+//        // Traverse all cells, evaluate minimax function for
+//        // all empty cells. And return the cell with optimal
+//        // value.
+//            for i in 0...8 {
+//                // Check if cell is empty
+//                if (blocks[i] == .blank)
+//                {
+//                    // Make the move
+//                    blocks[i] = .o;
+//
+//                    // compute evaluation function for this
+//                    // move.
+//                    var moveVal = minimax(&blocks, 0, false);
+//
+//                    // Undo the move
+//                    blocks[i] = .blank;
+//
+//                    // If the value of the current move is
+//                    // more than the best value, then update
+//                    // best/
+//                    if (moveVal > bestVal)
+//                    {
+//                        bestMove = i
+//                        bestVal = moveVal;
+//                    }
 //            }
 //        }
-//        return bestScore
 //
+////        return bestMove;
+//            let move = bestMove
+//
+//            blocks[move] = .o;
+//            DispatchQueue.main.async {
+//                print(self.blocks)
+//                self.didUpdate(state: self.currPlayer, button: self.buttons[move])
+//            }
+//    }
+//
+//    func minimax(_ board : inout [BlockState], _ depth:Int ,_ isMax: Bool) -> Int
+//    {
+//        if let score = checkWin(board) {
+//            return score
+//        }
+//
+//        // If this maximizer's move
+//        if (isMax)
+//        {
+//        var best = -1000;
+//
+//            // Traverse all cells
+//            for i in 0...8 {
+//                    // Check if cell is empty
+//                if (board[i] == .blank)
+//                    {
+//                        // Make the move
+//                        board[i] = .o;
+//
+//                        // Call minimax recursively and choose
+//                        // the maximum value
+//                        best = max( best,
+//                            minimax(&board, depth+1, !isMax) );
+//
+//                        // Undo the move
+//                        board[i] = .blank;
+//                    }
+//
+//            }
+//            return best;
+//        }
+//
+//        // If this minimizer's move
+//        else
+//        {
+//            var best = 1000;
+//
+//            // Traverse all cells
+//            for i in 0...8 {
+//                    // Check if cell is empty
+//                if (board[i] == .blank)
+//                    {
+//                        // Make the move
+//                        board[i] = .x;
+//
+//                        // Call minimax recursively and choose
+//                        // the minimum value
+//                        best = min(best,
+//                               minimax(&board, depth+1, !isMax));
+//
+//                        // Undo the move
+//                        board[i] = .blank;
+//                    }
+//
+//            }
+//            return best;
+//        }
+//    }
+//
+//
+//
+//    func getOppositePlayer(_ curr: BlockState) -> BlockState {
+//        return curr == .o ? .x : .o
+//    }
+//
+//
+//
+//
+//    func checkWin (_ board: [BlockState]) -> Int? {
+//        var endGame = false
+//        var player: BlockState = .blank
+//                for comb in winComb {
+//                    endGame = (board[comb[0]] == board[comb[1]] && board[comb[0]] == board[comb[2]] && board[comb[0]] != .blank)
+//                    if (endGame) {
+//                        player = board[comb[0]]
+//                    }
+//                }
+//
+////        return player
+//
+//                if (endGame) {
+////                    print(board)
+//                    if (player == .x) {
+//                        return -1
+//                    } else if (player == .o) {
+//                        return 1
+//                    }
+//                } else if (!board.contains(.blank)) {
+//                    return 0
+//                }
+//        return nil
 //    }
 
 }
