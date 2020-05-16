@@ -44,7 +44,7 @@ class MyViewController : UIViewController {
 
     func didUpdate(state: GameState, button: UIButton, comb: [UIButton]) {
         switch state {
-            case .playing: turn.text = currPlayer == .x ? "Your Turn" : ""; turn.textColor = .label
+        case .playing: turn.text = currPlayer == .x ? "Your Turn" : ""; turn.textColor = .label; currPlayer == .o ? self.onComputerTurn() : nil
             case .win: turn.text = "You Win!"; turn.textColor = .systemGreen; scoreCount = scoreCount + 1; comb.forEach { block in block.tintColor = .systemGreen}
             case .lose: turn.text = "You lose :("; turn.textColor = .systemRed; comb.forEach { block in block.tintColor = .systemRed}
             case .draw: turn.text = "Draw"; turn.textColor = .systemGray; buttons.forEach { block in block.tintColor = .systemGray}
@@ -64,7 +64,6 @@ class MyViewController : UIViewController {
         
         view.addSubview(title)
         
-//        let score = UILabel()
         score.frame = CGRect(x: 0, y: title.frame.maxY + 25, width: 150, height: 25)
         score.center.x = view.center.x
         score.textAlignment = .center
@@ -73,7 +72,6 @@ class MyViewController : UIViewController {
         
         view.addSubview(score)
         
-//        let turn = UILabel()
         turn.frame = CGRect(x: 0, y: score.frame.maxY + 100, width: 250, height: 35)
         turn.center.x = view.center.x
         turn.textAlignment = .center
@@ -89,7 +87,7 @@ class MyViewController : UIViewController {
             let y = Int(turn.frame.maxY) + 30 + (70 * i)
             button.frame = CGRect(x: 0, y: y, width: 60, height: 60)
             button.center.x = view.center.x
-            button.tag = (3 * i) + 1
+            button.tag = (3 * i) + 2
             button.tintColor = .systemBlue
             view.addSubview(button)
 
@@ -98,7 +96,7 @@ class MyViewController : UIViewController {
             buttonL.addTarget(self, action: #selector(self.onClickButton), for: .touchUpInside)
             let xL = Int(button.frame.minX) - 70
             buttonL.frame = CGRect(x: xL, y: y, width: 60, height: 60)
-            buttonL.tag = (3 * i)
+            buttonL.tag = (3 * i) + 1
             buttonL.tintColor = .systemBlue
             view.addSubview(buttonL)
 
@@ -107,7 +105,7 @@ class MyViewController : UIViewController {
             buttonR.addTarget(self, action: #selector(self.onClickButton), for: .touchUpInside)
             let xR = Int(button.frame.maxX) + 10
             buttonR.frame = CGRect(x: xR, y: y, width: 60, height: 60)
-            buttonR.tag = (3 * i) + 2
+            buttonR.tag = (3 * i) + 3
             buttonR.tintColor = .systemBlue
             view.addSubview(buttonR)
             
@@ -138,15 +136,21 @@ class MyViewController : UIViewController {
     }
     
     @objc func onClickButton(sender: UIButton) {
-        if (blocks[sender.tag] == .blank && gameState == .playing) {
+        if (blocks[sender.tag - 1] == .blank && gameState == .playing) {
             hapticEngine.impactOccurred()
-            blocks[sender.tag] = currPlayer
-            self.didUpdate(state: currPlayer, button: sender)
-            let endGame = self.checkStatus(sender)
-            if (!endGame) {
-                self.onComputerTurn()
-                
+            blocks[sender.tag - 1] = currPlayer
+//            var endGame = false
+            DispatchQueue.main.async {
+                self.didUpdate(state: self.currPlayer, button: sender)
+//                endGame =
             }
+            self.checkStatus(sender)
+
+//            if (!endGame) {
+//                self.onComputerTurn()
+//                print("here")
+//
+//            }
             
         } else if (gameState == .playing) {
             turn.text = "Invalid Move"
@@ -194,44 +198,57 @@ class MyViewController : UIViewController {
     }
     
     func onComputerTurn() {
-        
-        // also need to check that the player isnt about to win
-        
-        var computerTags = [Int]()
-        var playerTags = [Int]()
-        var emptyTags = [Int]()
-        var possibleMoves = [Int]()
+        var score = -Int.max
+        var move = -1
         
         for (i, block) in blocks.enumerated() {
-            if (block == .o) {
-                computerTags.append(i)
-            } else if (block == .x) {
-                playerTags.append(i)
-            } else {
-                emptyTags.append(i)
+            print("i: \(i)")
+            print("block: \(block)")
+            if (block == .blank) {
+                blocks[i] = .o
+                let minimaxScore = minimax(&blocks, 0, .o)
+                print("score: \(score)")
+                blocks[i] = .blank
+                if (minimaxScore > score) {
+                    score = minimaxScore
+                    move = i
+                }
             }
         }
-        
-        for comb in winComb {
-            if ((comb.filter{ playerTags.contains($0) }).count == 0) {
-                possibleMoves += comb.filter{ !computerTags.contains($0) }
-            }
-        }
-        
-        if (possibleMoves.count == 0) {
-            possibleMoves = emptyTags
-        }
-        
-        let i = possibleMoves.randomElement()!
-        blocks[i] = currPlayer
+        print(move)
+        blocks[move] = currPlayer
         let seconds = 2.0
         
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
-            self.didUpdate(state: self.currPlayer, button: self.view.viewWithTag(i) as! UIButton)
-            self.checkStatus(self.view.viewWithTag(i) as! UIButton)
+            self.didUpdate(state: self.currPlayer, button: self.buttons[move])
+            self.checkStatus(self.buttons[move])
         }
-        
     }
+    
+//    func minimax(_ blocks: inout [BlockState], _ depth: Int, _ curr: BlockState) -> Int {
+//        var endGame = false
+//        for comb in winComb {
+//            endGame = (blocks[comb[0]] == blocks[comb[1]] && blocks[comb[0]] == blocks[comb[2]] && blocks[comb[0]] != .blank)
+//        }
+//
+//        if (endGame) {
+//            return curr == .o ? 1 : -1
+//        } else if (!blocks.contains(.blank)) {
+//            return 0
+//        }
+//
+//        var bestScore = curr == .o ? -Int.max : Int.max
+//        for (i, block) in blocks.enumerated() {
+//            if (block == .blank) {
+//                blocks[i] = curr
+//                let score = minimax(&blocks, depth + 1, curr == .o ? .o : .x)
+//                blocks[i] = .blank
+//                bestScore = curr == .o ? max(score, bestScore) : min(score, bestScore)
+//            }
+//        }
+//        return bestScore
+//
+//    }
 
 }
 // Present the view controller in the Live View window
