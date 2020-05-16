@@ -155,6 +155,59 @@ class MyViewController : UIViewController {
         }
     }
     
+    func onComputerTurn() {
+        var bestScore = Int.min;
+        var move = -1;
+        
+        for i in 0...8 {
+            if (blocks[i] == .blank) {
+                blocks[i] = .o;
+                let score = minimax(&blocks, .x);
+                blocks[i] = .blank;
+                if (score > bestScore) {
+                    bestScore = score;
+                    move = i;
+                }
+            }
+        }
+        
+        blocks[move] = .o;
+        
+        DispatchQueue.main.async {
+            self.didUpdate(state: self.currPlayer, button: self.buttons[move])
+        }
+    }
+    
+    func didWin(_ board: [BlockState]) -> Int? {
+        for comb in winComb {
+            if board[comb[0]] == board[comb[1]] && board[comb[0]] == board[comb[2]] && board[comb[0]] != .blank {
+                return board[comb[0]] == .x ? -1 : 1
+            }
+        }
+        if (!board.contains(.blank)) {
+            return 0
+        }
+        return nil
+    }
+    
+    func minimax(_ board: inout [BlockState], _ curr: BlockState) -> Int {
+        
+        if let score = didWin(board) {
+            return score
+        }
+
+        var bestScore = curr == .o ? Int.min: Int.max;
+        for i in 0...8 {
+            if (board[i] == .blank) {
+                board[i] = curr;
+                let score = minimax(&board, curr == .o ? .x : .o);
+                board[i] = .blank;
+                bestScore = curr == .o ? max(score, bestScore): min(score, bestScore);
+            }
+        }
+        return bestScore;
+    }
+    
     func checkStatus(_ sender: UIButton) {
         var endGame = false
         var winningComb: [UIButton] = []
@@ -189,104 +242,6 @@ class MyViewController : UIViewController {
                     loseSoundEffect?.play()
                 }
             } catch {}
-        }
-    }
-
-    func didWin(_ board: [BlockState], _ player: BlockState) -> Bool {
-        for comb in winComb {
-            if board[comb[0]] == player && board[comb[1]] == player && board[comb[2]] == player {
-                return true
-            }
-        }
-        return false
-    }
-    
-    func didWin2(_ board: [BlockState]) -> Int? {
-        for comb in winComb {
-            if board[comb[0]] == board[comb[1]] && board[comb[0]] == board[comb[2]] && board[comb[0]] != .blank {
-                return board[comb[0]] == .x ? -1 : 1
-            }
-        }
-        if (!board.contains(.blank)) {
-            return 0
-        }
-        return nil
-    }
-    
-    
-    
-    func onComputerTurn() {
-        var bestScore = Int.min;
-        var move = -1;
-        
-        for i in 0...8 {
-            if (blocks[i] == .blank) {
-                blocks[i] = .o;
-                let score = minimax2(&blocks, .x);
-                blocks[i] = .blank;
-                if (score > bestScore) {
-                    bestScore = score;
-                    move = i;
-                }
-            }
-        }
-        
-        blocks[move] = .o;
-        
-        DispatchQueue.main.async {
-            self.didUpdate(state: self.currPlayer, button: self.buttons[move])
-        }
-    }
-    
-    func minimax2(_ board: inout [BlockState], _ curr: BlockState) -> Int {
-        
-        if let score = didWin2(board) {
-            return score
-        }
-
-        var bestScore = curr == .o ? Int.min: Int.max;
-        for i in 0...8 {
-            if (board[i] == .blank) {
-                board[i] = curr;
-                let score = minimax2(&board, curr == .o ? .x : .o);
-                board[i] = .blank;
-                bestScore = curr == .o ? max(score, bestScore): min(score, bestScore);
-            }
-        }
-        return bestScore;
-    }
-
-    func minimax(_ board: inout [BlockState], _ depth: Int, _ isMaximizing: Bool) -> Int {
-        if (didWin(board, .x)) {
-            return -1
-        } else if (didWin(board, .o)) {
-            return 1
-        } else if (!board.contains(.blank)) {
-            return 0
-        }
-
-        if (isMaximizing) {
-            var bestScore = Int.min;
-            for i in 0...8 {
-                if (board[i] == .blank) {
-                    board[i] = .o;
-                    let score = minimax(&board, depth + 1, false);
-                    board[i] = .blank;
-                    bestScore = max(score, bestScore);
-                }
-            }
-            return bestScore;
-        } else {
-            var bestScore = Int.max;
-            for i in 0...8 {
-                if (board[i] == .blank) {
-                    board[i] = .x;
-                    let score = minimax(&board, depth + 1, true);
-                    board[i] = .blank;
-                    bestScore = min(score, bestScore);
-                }
-            }
-            return bestScore;
         }
     }
 
